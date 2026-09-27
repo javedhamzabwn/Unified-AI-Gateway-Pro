@@ -5,8 +5,24 @@ __pycache__/
 
 # Logs and debug files
 *.log
+data/*.log
 ainative_debug.png
 ainative_key_screen.png
+
+# Runtime data: encrypted key DB, master key, usage DB, watchdog state
+data/*.db
+data/.master_key
+data/watchdog.pid
+data/watchdog.lock
+
+# Secrets and local environment
+.env
+*.pem
+*.key
+
+# Pytest cache
+.pytest_cache/
+*.pyc
 
 # Key storage (Keep these local, don't upload to GitHub!)
 kilo_keys.txt

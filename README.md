@@ -1,67 +1,157 @@
-# Unified Kilo & AINative API Gateway
+# Unified AI Gateway Pro
 
-This is an automated API key harvesting system and proxy gateway that multiplexes Kilo Code and AINative Studio AI models into a single, unified endpoint. It comes with an intelligent caching routing proxy, background stealth browsers for auto-key generation, and a local tunneling system for public access.
+A bring-your-own-key (BYOK) gateway that multiplexes your own API keys from
+multiple AI providers behind one OpenAI-compatible endpoint. You paste in
+keys you already own; the gateway stores them encrypted, routes chat
+requests across providers with automatic failover, and tracks usage and
+estimated cost.
 
-## 🚀 1-Click Installation
+What this is not: the gateway never creates accounts, never signs up for
+services, never solves CAPTCHAs, and never harvests keys. Experimental
+automation from an earlier prototype lives isolated under
+`legacy/quarantine/` and is not imported by the gateway.
 
-To set up everything on a new PC, all you have to do is run a single command. 
+## Quickstart
 
-If you are setting this up for the first time, open PowerShell and paste this exact command to auto-download, install, configure the 100 API cap, and start the proxy in the background:
+Prerequisites: Python 3.10+ and the bundled virtualenv.
 
-```powershell
-cd $HOME\Desktop; git clone https://github.com/javedhamzabwn/Unified-AI-Gateway-Pro.git KiloAPI_New; cd KiloAPI_New; '{ "kilo_cap": 100, "ainative_cap": 100 }' | Set-Content config.json; PowerShell -ExecutionPolicy Bypass -File .\install.ps1; PowerShell -ExecutionPolicy Bypass -File .\api_cli.ps1 start
+```bash
+cd Unified-AI-Gateway-Pro
+cp .env.example .env          # then edit .env and set UAG_ADMIN_TOKEN
+.venv/bin/python -m gateway.cli serve
 ```
 
-Alternatively, if you already downloaded the folder manually:
-1. Double-click **`run.bat`** (or `Install.bat`) to automatically install dependencies and launch the interactive Control Center in one click!
+The gateway listens on `http://127.0.0.1:8008` by default. Open
+`http://127.0.0.1:8008/dashboard` for the web dashboard.
 
-## 🛠️ Usage & Control Center
+Add your first key (the secret is typed hidden, never echoed):
 
-You can control the entire system either interactively or via CLI:
+```bash
+export UAG_ADMIN_TOKEN=your-token
+.venv/bin/python -m gateway.cli keys add --provider kilo --label main
+```
 
-### 1. Web Dashboard (GUI Control Center)
-* Open in any browser: **`http://localhost:8008/dashboard`** (or run `api web`).
-* **Live Metrics**: Monitor Kilo Code and AINative key stock, capacity meters, and browser engine status in real-time.
-* **Stream Logs**: Real-time log streaming for Kilo, AINative, Proxy, and LocalTunnel.
-* **Error Inspector**: Real-time error detection with actionable troubleshooting hints (Cloudflare checks, email lags, rate limits).
-* **AI Chat Tester**: Playground to query AI models directly from the browser.
-* **1-Click Controls**: Start/Stop services, trigger live visible harvests, launch CDP Chrome, and toggle Headless/Visible browser modes.
+Send a chat request:
 
-### 2. Interactive Terminal Control Center
-* Double-click `run.bat` (or type `api` in any terminal without arguments).
-* Features sub-menus for live activity logs, endpoint tests, key cap configuration, Chrome recovery, and foreground debugging.
+```bash
+curl http://127.0.0.1:8008/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{"model": "kilo-auto/free",
+       "messages": [{"role": "user", "content": "hello"}]}'
+```
 
-### 3. Quick CLI Commands
-* `api` - Launch the interactive terminal Control Center.
-* `api web` - Open the localhost Web Dashboard in your default browser.
-* `api start` - Boot up the proxy, local tunnel, and background stealth bots.
-* `api stop` - Cleanly shut down all bots, browser processes, and proxy servers.
-* `api details` - View live status, active keys count, caps, browser engine, and URLs.
-* `api workers [kilo|ainative] <1-5>` - Configure concurrent parallel browser workers.
-* `api browser` - Configure browser engines (Auto UC / Selenium CDP / Remote CDP), Headless vs Visible mode.
-* `api harvest [kilo|ainative]` - Live visible single-key harvester (watch key extraction on-screen).
-* `api cdp` - Launch independent Chrome on port 9222 for CSI extension / Browser-Use / manual verification.
-* `api log` - Stream live activity logs of the stealth bots, proxy, and tunnel.
-* `api models` - List all the AI models currently available across the providers.
-* `api cap` - Set maximum key generation caps or change Gateway HTTP port.
-* `api hi` - Test the local proxy completion endpoint.
-* `api public hi` - Test the public tunnel completion endpoint.
-* `api restore` - Fix locked/blocked personal Chrome browser.
-* `api install` - Run environment and dependency verification.
+If `UAG_REQUIRE_PUBLIC_AUTH=true`, add `-H "Authorization: Bearer $UAG_ADMIN_TOKEN"`.
 
-## 🌐 Browser Subsystem & Remote CDP (CSI / Browser-Use)
-The new `browser_manager.py` subsystem provides:
-- **Headless Mode**: Zero-footprint background runs without interrupting user desktop work.
-- **Visible Mode**: On-screen browser execution to inspect navigation and Cloudflare verification live.
-- **Automated Fallback**: Switches from Undetected-Chromedriver to Standard Selenium CDP with anti-detect script injection automatically if needed.
-- **Remote CDP Connection (Port 9222)**: Connect to existing Chrome sessions or external tools like Browser-Use or CSI extensions.
+## Configuration
 
-## 🧠 Intelligent Routing Cache
-The built-in proxy server (`kilo_proxy.py`) automatically routes your requests to the correct provider (Kilo Code or AINative Studio) depending on the model. If a model works on one provider but fails on another, the proxy **memorizes** this and instantly routes all future requests directly to the correct provider to save time and bandwidth.
+`config/gateway.json` holds providers and models; every setting can be
+overridden with a `UAG_*` environment variable (see `.env.example`).
+Key files and SQLite databases live under `data/` (configurable with
+`UAG_DATA_DIR`).
 
-## ⚠️ Requirements
-* Windows OS (PowerShell 5.1 or PowerShell 7+)
-* Chrome or Edge Browser (auto-detected via registry or Program Files)
-* Python 3.10+
-* Node.js (for the LocalTunnel public URL)
+## CLI reference
 
+Run from the repo root: `.venv/bin/python -m gateway.cli <command>`.
+Global flags: `--config PATH`, `--host H`, `--port P`, `--token T`
+(token defaults to `UAG_ADMIN_TOKEN`). Exit codes: 0 ok, 1 failure,
+2 usage error.
+
+| Command | Description |
+|---|---|
+| `serve [--host --port]` | Run the gateway server (foreground) |
+| `status` | Gateway status: uptime, providers, key and model counts |
+| `providers` | Providers with health, key counts, model counts |
+| `models` | Models with priority and fallback chains |
+| `keys list [--provider P]` | Stored keys (always masked, never raw) |
+| `keys add --provider P --label L` | Add a key; secret read hidden via getpass |
+| `keys enable --id ID` | Enable a key |
+| `keys disable --id ID` | Disable a key |
+| `keys remove --id ID` | Delete a key |
+| `health` | Per-provider health snapshot |
+| `usage [--days N]` | Requests, tokens, estimated cost, latency |
+| `config show` | Sanitized config (token blanked); live view with `--token` |
+| `logs [--lines N]` | Tail `data/gateway.log` via the admin API |
+| `test` | Run the pytest suite |
+
+## API reference
+
+Public (OpenAI-compatible):
+
+- `GET /healthz` - liveness, no auth required
+- `GET /v1/models` - enabled models
+- `POST /v1/chat/completions` - chat; set `"stream": true` for SSE
+
+Admin (`/admin/*`, bearer token required):
+
+- `GET /admin/status` - status overview
+- `GET /admin/providers` - providers plus health snapshot
+- `GET /admin/models`, `POST /admin/models`, `PATCH /admin/models/{id}` - model registry
+- `GET /admin/keys`, `POST /admin/keys`, `PATCH /admin/keys/{id}`, `DELETE /admin/keys/{id}` - key management (masked)
+- `GET /admin/usage?days=N` - usage and cost summary
+- `GET /admin/requests?limit=N&status=` - recent request log
+- `GET /admin/health` - per-provider health checks
+- `GET /admin/logs?lines=N` - tail the log file
+- `GET /admin/config` - sanitized config
+
+The web dashboard is served at `/` and `/dashboard`.
+
+## Routing behavior
+
+- Models resolve to a primary provider plus enabled fallback models.
+- 429/5xx: retried with backoff, then the next key, then the next model.
+- 401/403: the failing key is rotated out (cooled down), request continues.
+- 400/404: fail fast, no retries.
+- Circuit breaker: a provider that keeps failing is skipped for a cooldown.
+- Every attempt is bounded; the router never loops forever.
+
+## Watchdog
+
+`gateway/watchdog.py` supervises the gateway process: it polls
+`/healthz` and `/admin/health`, and after 3 consecutive failures restarts
+the gateway with exponential backoff (30s, 60s, 120s, capped at 600s).
+At most 5 restarts per rolling hour; after that it logs CRITICAL and keeps
+polling without restarting, so a broken service is never restarted in a
+tight loop. See `WATCHDOG.md`.
+
+```bash
+.venv/bin/python -m gateway.watchdog --interval 30
+```
+
+## Testing
+
+```bash
+.venv/bin/python -m pytest tests/ -q
+# or
+.venv/bin/python -m gateway.cli test
+```
+
+Tests cover the keystore (masking, round-trip, selection, failure
+accounting), the router (fallback, fast failure, key rotation, circuit
+breaker, attempt bounds), the HTTP API (auth, masking, mocked chat), usage
+arithmetic, config loading, and security (permissions, token auth).
+
+## Security
+
+- API keys are encrypted at rest with Fernet; the master key file is
+  created with mode `0600`.
+- Keys are masked in every API response, log line, and CLI output.
+  Raw secrets are never returned or printed.
+- Admin endpoints require a bearer token; without `UAG_ADMIN_TOKEN`
+  they reject everything.
+- Request bodies are size-limited; oversized payloads get 413.
+- Auth failures use constant-time comparison.
+
+## Quarantine note
+
+`legacy/quarantine/` holds the old experimental key-harvesting automation.
+It is not part of the gateway, is not imported by any gateway module,
+and must stay that way. Do not wire it back in.
+
+## Repository layout
+
+- `gateway/` - the gateway package (app, router, providers, keystore,
+  registry, usage, health, config, logging, CLI, watchdog, dashboard)
+- `config/gateway.json` - providers and models
+- `data/` - SQLite databases, master key, logs (git-ignored)
+- `tests/` - pytest suite
+- `legacy/quarantine/` - isolated legacy experiments, not imported
