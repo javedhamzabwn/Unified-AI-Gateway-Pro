@@ -49,6 +49,7 @@ class FakeProviderClient:
 
     async def chat_stream(self, model, payload, api_key, request_id):
         raise ProviderError(500, "no stream in fake", True)
+        yield  # unreachable; makes this an async generator function
 
     async def health_check(self, api_key=None):
         return {"ok": True, "latency_ms": 1.0, "detail": "fake"}
@@ -200,3 +201,84 @@ def test_provider_client_ignores_ambient_proxy_env(monkeypatch):
     inner = client._get_client()
     assert inner is not None
     assert client._client.trust_env is False
+
+
+@pytest.mark.asyncio
+async def test_disabled_model_with_enabled_fallback_rejected(test_settings,
+                                                             keystore,
+                                                             tmp_data):
+    """Regression: a disabled requested model must raise RoutingError even
+    when it has an enabled fallback. Fallbacks only apply to runtime
+    failures of an enabled model, never to resurrect a disabled one."""
+    models = [dataclasses.replace(m, enabled=False) if m.id == "m1" else m
+              for m in test_settings.models]
+    settings = dataclasses.replace(test_settings, models=models)
+    router, fakes = _router(
+        settings, keystore, tmp_data,
+        {"p1": [("ok", OK_CHAT_RESPONSE)],
+         "p2": [("ok", OK_CHAT_RESPONSE)]})
+    with pytest.raises(RoutingError) as exc_info:
+        await router.complete(dict(CHAT_PAYLOAD), "r-disabled")
+    assert "unknown or disabled" in str(exc_info.value)
+    # neither the primary's nor the fallback's provider was touched
+    assert fakes["p1"].calls == 0
+    assert fakes["p2"].calls == 0
+
+
+@pytest.mark.asyncio
+async def test_disabled_model_with_enabled_fallback_rejected_stream(
+        test_settings, keystore, tmp_data):
+    """Streaming variant of the disabled-model regression."""
+    models = [dataclasses.replace(m, enabled=False) if m.id == "m1" else m
+              for m in test_settings.models]
+    settings = dataclasses.replace(test_settings, models=models)
+    router, fakes = _router(
+        settings, keystore, tmp_data,
+        {"p1": [("ok", OK_CHAT_RESPONSE)],
+         "p2": [("ok", OK_CHAT_RESPONSE)]})
+    with pytest.raises(RoutingError) as exc_info:
+        async for _ in router.complete_stream(dict(CHAT_PAYLOAD), "r-dis-s"):
+            pass
+    assert "unknown or disabled" in str(exc_info.value)
+    assert fakes["p1"].calls == 0
+    assert fakes["p2"].calls == 0
+
+
+@pytest.mark.asyncio
+async def test_complete_failure_records_last_provider(test_settings, keystore,
+                                                      tmp_data):
+    """Regression: a failed non-streaming request must record the last
+    provider actually attempted, not an empty provider string."""
+    router, _ = _router(
+        test_settings, keystore, tmp_data,
+        {"p1": [("err", ProviderError(401, "unauthorized", False))],
+         "p2": [("err", ProviderError(500, "boom", True))]})
+    keystore.add("p1", "a", "sk-key-aaaa1111")
+    keystore.add("p2", "b", "sk-key-bbbb2222")
+    with pytest.raises(RoutingError):
+        await router.complete(dict(CHAT_PAYLOAD), "r-failprov")
+    rows = router.usage.recent(limit=5)
+    assert len(rows) == 1
+    assert rows[0]["status"] == "error"
+    assert rows[0]["provider"] == "p2"
+    assert rows[0]["model"] == "m1"
+
+
+@pytest.mark.asyncio
+async def test_complete_stream_failure_records_usage(test_settings, keystore,
+                                                     tmp_data):
+    """Regression: a failed streaming request must leave one error usage
+    row (previously stream failures were never recorded)."""
+    router, _ = _router(
+        test_settings, keystore, tmp_data,
+        {"p1": [], "p2": []})
+    keystore.add("p1", "a", "sk-key-aaaa1111")
+    keystore.add("p2", "b", "sk-key-bbbb2222")
+    with pytest.raises(RoutingError):
+        async for _ in router.complete_stream(dict(CHAT_PAYLOAD),
+                                              "r-streamfail"):
+            pass
+    rows = router.usage.recent(limit=5)
+    assert len(rows) == 1
+    assert rows[0]["status"] == "error"
+    assert rows[0]["provider"] == "p2"

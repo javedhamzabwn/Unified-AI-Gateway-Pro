@@ -160,3 +160,17 @@ def test_startup_does_not_block_on_health_checks(app, monkeypatch):
         elapsed = time.perf_counter() - t0
     assert r.status_code == 200
     assert elapsed < 10, f"startup blocked on health check ({elapsed:.1f}s)"
+
+
+def test_chat_disabled_model_with_fallback_404(client):
+    # m1 is enabled with fallback m2; disabling m1 must 404 the request,
+    # not silently serve it via the fallback.
+    r = client.patch("/admin/models/m1", json={"enabled": False},
+                     headers=AUTH)
+    assert r.status_code == 200
+    for stream in (False, True):
+        r = client.post("/v1/chat/completions",
+                        json={"model": "m1", "stream": stream,
+                              "messages": [{"role": "user", "content": "hi"}]})
+        assert r.status_code == 404, stream
+        assert r.json()["error"]["type"] == "model_not_found"

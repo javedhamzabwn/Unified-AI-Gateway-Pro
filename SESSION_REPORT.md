@@ -41,6 +41,37 @@ code stays quarantined in `legacy/quarantine/` and was not improved.
    "another watchdog instance is already running" (flock). SIGTERM shut everything down
    cleanly: child stopped, pid/lock files removed, port closed.
 
+7. **Public tunnel testing** (2026-09-27): Cloudflare Quick Tunnel failed (error 1033,
+   QUIC/UDP + HTTP/2 blocked through the sandbox proxy). Serveo SSH tunnel via a custom
+   HTTP CONNECT proxy helper worked: `https://d0e8beec3ea33687-104-28-209-117.serveousercontent.com`
+   -> local 8123. Terminal checks through the public URL passed (healthz, dashboard,
+   /v1/models, admin 401/200, honest 502 chat, SSE error + [DONE]). Real managed Chromium
+   passed end to end: warning interstitial, login, all 8 sections live, key creation via
+   the real form, masked keys, model toggle with confirmation, failed provider call in
+   Requests. Two bugs found and fixed during this loop:
+   - **Disabled requested model served via fallback**: disabling
+     `deepseek/deepseek-r1:free` hid it from /v1/models, but chat requests for it still
+     routed to its enabled fallback (502 instead of 404). `app.py` and both router paths
+     now check the requested model itself via `registry.get()` + `enabled`.
+   - **Usage dashboard/API schema mismatch**: Usage view showed "3 requests, 0 errors,
+     100% success" while the DB held three error rows, and the provider cell was blank.
+     `summary()` now returns `errors` on totals and rows (legacy fields kept); the router
+     records the last attempted provider on failure and records stream failures
+     (previously never recorded); dashboard renders empty provider as "unrouted".
+   Regression tests added for both; suite now **55 passed**, 1 warning.
+   - **Usage grouped-rows bugs**: the "By model" table showed two rows both labeled
+     `kilo-auto/free` because `summary()` grouped by `(model, provider)` while the
+     dashboard only displays the model name; grouped rows also lacked the
+     `prompt_tokens`/`completion_tokens` splits the dashboard renders. by_model now
+     groups by `model` only, and both grouped queries return the token splits.
+     Two more regression tests; suite now **57 passed**, 1 warning. Verified live
+     through the public tunnel: single model row, token fields present.
+   - **Live API sweep (22/22 passed)** through the public URL after the fixes:
+     health, models, admin auth (401/200), all admin endpoints valid JSON, usage
+     schema, bad-input shapes (400/400/404), no-key chat 502 honest, no-key stream
+     SSE error + [DONE], dashboard HTML, disable/re-enable model with 404 on both
+     paths. Server log review: 95 requests, zero tracebacks, zero 500s.
+
 6. **Security pass**: no raw key material in tracked files or git history; no imports from
    `legacy/quarantine` anywhere in gateway code; `.master_key` mode 0600, `keys.db` 640;
    admin auth uses `hmac.compare_digest` and is disabled when no token is configured;

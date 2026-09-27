@@ -92,3 +92,59 @@ Browser automation bugs found this session (per browser loop rule): (1) direct C
 --remote-allow-origins=* for the WS handshake; (2) waiting only on Page.loadEventFired raced
 navigation — switched to document.readyState polling. Neither blocked the mission; both are
 harness-only, recorded here.
+
+## Public tunnel testing (2026-09-27, main agent)
+
+Cloudflare Quick Tunnel failed (error 1033: QUIC/UDP and HTTP/2 tunnel connectivity
+blocked through the sandbox proxy). Fell back to a Serveo SSH tunnel via a custom HTTP
+CONNECT proxy helper (`/tmp/uag-pub/proxycommand.py`), local gateway on port 8123.
+Public URL (temporary): `https://d0e8beec3ea33687-104-28-209-117.serveousercontent.com`
+(Serveo warning interstitial requires "Continue to Site").
+
+Terminal via public URL: /healthz 200, dashboard HTML served, /v1/models lists enabled
+models, admin 401 without token / 200 with, no-key chat -> honest 502, streaming SSE
+error + [DONE]. Real managed Chromium: warning flow, dashboard, admin login, all 8
+sections live, key creation through the real form, masked keys, model toggle with
+confirmation, failed provider call visible in Requests.
+
+### Bug found: disabled requested model served via fallback (fixed)
+Disabling `deepseek/deepseek-r1:free` removed it from /v1/models, but a chat request
+for it still routed to its enabled fallback and returned 502 instead of 404.
+Cause: `ModelRegistry.resolve()` drops the disabled primary but returns enabled
+fallbacks; the API/router treated "resolvable" as "enabled".
+Fix: `gateway/app.py` and `gateway/router.py` (both `complete` and `complete_stream`)
+now check the requested model itself via `registry.get()` + `enabled` before routing.
+Fallbacks still apply only to runtime failures of an enabled requested model.
+Regression tests: API 404 and router RoutingError for disabled model with enabled
+fallback, streaming and non-streaming. Verified publicly: 404 on both paths.
+
+### Bug found: Usage dashboard/API schema mismatch (fixed)
+Usage view showed "3 requests, 0 errors, 100% success" while the DB held three
+`status='error'` rows, and the provider cell was blank.
+Causes: (1) `UsageStore.summary()` returned `error_requests` (totals) /
+`ok_requests` (rows) while the dashboard reads `.errors`; (2) failed requests were
+recorded with `provider=""`; (3) `complete_stream()` never recorded usage on
+failure at all.
+Fixes: `summary()` now also returns `errors` on totals and on by_provider/by_model
+rows (legacy fields kept); router records the last attempted provider on total
+failure (both paths) and records stream failures (mid-stream and pre-stream) with
+`attempts` tracking added to the stream loop; dashboard renders empty provider as
+"unrouted". Regression tests: `test_summary_includes_errors_field`,
+`test_complete_failure_records_last_provider`,
+`test_complete_stream_failure_records_usage`.
+After fix: `pytest -q` -> 55 passed, 1 warning.
+
+### Bug 3 (2026-09-27): duplicate rows + missing token splits in usage groups
+Browser verification of the Usage tab showed the "By model" table with two rows
+both labeled `kilo-auto/free` (2/2 and 1/1 errors). Root cause: `summary()` in
+`gateway/usage.py` grouped by_model by `(model, provider)` while the dashboard
+only displays the model name. Same inspection found the grouped queries
+returned only combined `tokens`, but the dashboard renders per-row
+`prompt_tokens` / `completion_tokens` (always 0/0).
+Fixes: by_model now groups by `model` only; both grouped queries also return
+`SUM(prompt_tokens)` / `SUM(completion_tokens)`. No dashboard JS change needed
+(it already read those fields and never used provider on by_model rows).
+Regression tests: `test_by_model_groups_by_model_only`,
+`test_grouped_rows_include_token_splits`.
+After fix: `pytest -q` -> 57 passed, 1 warning. Verified live through the
+public tunnel: single `kilo-auto/free` row, token split fields present.

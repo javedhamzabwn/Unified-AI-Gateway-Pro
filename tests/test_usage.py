@@ -84,3 +84,52 @@ def test_estimate_cost_without_model():
 def test_estimate_cost_missing_prices():
     m = ModelDef(id="m", provider="p")
     assert estimate_cost(1000, 1000, m) == 0.0
+
+
+def test_summary_includes_errors_field(tmp_path):
+    """Regression: the dashboard reads .errors, so summary() must provide
+    it on totals and on by_provider/by_model rows."""
+    store = _store(tmp_path)
+    now = time.time()
+    store.record(_rec(request_id="r1", ts=now))
+    store.record(_rec(request_id="r2", ts=now, status="error", error="boom"))
+
+    s = store.summary()
+    assert s["totals"]["errors"] == 1
+    assert s["totals"]["error_requests"] == 1  # legacy alias kept
+    assert s["by_provider"][0]["errors"] == 1
+    assert s["by_model"][0]["errors"] == 1
+
+
+def test_by_model_groups_by_model_only(tmp_path):
+    """Regression: the dashboard 'By model' table shows one row per model.
+    Grouping by (model, provider) produced duplicate-looking rows for the
+    same model served via different providers."""
+    store = _store(tmp_path)
+    now = time.time()
+    store.record(_rec(request_id="r1", ts=now, model="m1", provider="p1"))
+    store.record(_rec(request_id="r2", ts=now, model="m1", provider="p2",
+                      status="error", error="boom"))
+    s = store.summary()
+    assert len(s["by_model"]) == 1
+    row = s["by_model"][0]
+    assert row["model"] == "m1"
+    assert row["requests"] == 2
+    assert row["errors"] == 1
+    # provider breakdown still splits correctly
+    assert len(s["by_provider"]) == 2
+
+
+def test_grouped_rows_include_token_splits(tmp_path):
+    """Regression: the dashboard renders per-row prompt/completion tokens,
+    so by_provider/by_model rows must carry the split fields, not just
+    the combined 'tokens'."""
+    store = _store(tmp_path)
+    now = time.time()
+    store.record(_rec(request_id="r1", ts=now, prompt_tokens=100,
+                      completion_tokens=50))
+    s = store.summary()
+    assert s["by_provider"][0]["prompt_tokens"] == 100
+    assert s["by_provider"][0]["completion_tokens"] == 50
+    assert s["by_model"][0]["prompt_tokens"] == 100
+    assert s["by_model"][0]["completion_tokens"] == 50

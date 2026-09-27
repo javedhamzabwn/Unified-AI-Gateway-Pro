@@ -128,8 +128,11 @@ class Router:
     async def complete(self, payload: dict, request_id: str) -> dict:
         set_request_id(request_id)
         model_id = (payload or {}).get("model", "")
-        resolved = self.registry.resolve(model_id)
+        primary = self.registry.get(model_id)
         attempts: list[dict] = []
+        if primary is None or not primary.enabled:
+            raise RoutingError(f"unknown or disabled model '{model_id}'", attempts)
+        resolved = self.registry.resolve(model_id)
         if not resolved:
             raise RoutingError(f"unknown or disabled model '{model_id}'", attempts)
 
@@ -200,7 +203,8 @@ class Router:
             # next resolved model (fallback)
 
         latency_ms = (time.perf_counter() - overall_t0) * 1000
-        self._record_usage(request_id, "", model_id, "", "", "error",
+        last_provider = attempts[-1].get("provider", "") if attempts else ""
+        self._record_usage(request_id, last_provider, model_id, "", "", "error",
                            latency_ms, 0, 0, "all providers exhausted")
         raise RoutingError(
             f"failed to serve model '{model_id}': all providers/keys exhausted", attempts)
@@ -211,11 +215,15 @@ class Router:
         is no further fallback: mid-stream errors are logged and re-raised."""
         set_request_id(request_id)
         model_id = (payload or {}).get("model", "")
-        resolved = self.registry.resolve(model_id)
+        primary = self.registry.get(model_id)
         attempts: list[dict] = []
+        if primary is None or not primary.enabled:
+            raise RoutingError(f"unknown or disabled model '{model_id}'", attempts)
+        resolved = self.registry.resolve(model_id)
         if not resolved:
             raise RoutingError(f"unknown or disabled model '{model_id}'", attempts)
 
+        overall_t0 = time.perf_counter()
         for mdef in resolved:
             provider_name = mdef.provider
             client = self.providers.get(provider_name)
@@ -247,19 +255,38 @@ class Router:
                                        key.masked, "ok", latency_ms, 0, 0, None)
                     return
                 except ProviderError as e:
+                    attempts.append({
+                        "provider": provider_name, "model": mdef.id,
+                        "status": e.status, "retryable": e.retryable,
+                        "error": e.message[:200],
+                    })
                     if streaming:
                         # Too late to fall back; surface the failure.
                         self.logger.error("mid-stream error from %s: %s", provider_name, e.message[:200])
+                        self._record_usage(request_id, provider_name, mdef.id, key.id,
+                                           key.masked, "error",
+                                           (time.perf_counter() - t0) * 1000,
+                                           0, 0, f"stream interrupted: {e.message}"[:200])
                         raise RoutingError(f"stream interrupted: {e.message}", attempts) from e
                     if e.status in (401, 403):
                         self.keystore.record_failure(key.id, f"auth failure ({e.status})",
                                                      cooldown_s=self.settings.key_cooldown_s)
                         continue
                     if not e.retryable:
+                        self._record_usage(request_id, provider_name, mdef.id, key.id,
+                                           key.masked, "error",
+                                           (time.perf_counter() - t0) * 1000,
+                                           0, 0, f"request failed: {e.message}"[:200])
                         raise RoutingError(f"request failed: {e.message}", attempts) from e
                     self.keystore.record_failure(key.id, e.message,
                                                  cooldown_s=self.settings.key_cooldown_s)
                     self._breaker_failure(provider_name)
                     continue
+        # Pre-stream failure: nothing yielded yet. Record one error row with
+        # the last provider actually attempted (may be "" if none was).
+        last_provider = attempts[-1].get("provider", "") if attempts else ""
+        self._record_usage(request_id, last_provider, model_id, "", "", "error",
+                           (time.perf_counter() - overall_t0) * 1000,
+                           0, 0, "all providers exhausted")
         raise RoutingError(
             f"failed to serve model '{model_id}': all providers/keys exhausted", attempts)

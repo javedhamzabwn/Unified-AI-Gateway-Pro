@@ -311,8 +311,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return _error("'messages' is required and must be a non-empty list",
                           status=400, err_type="invalid_request_error", code=400)
 
-        # fail fast on unknown/disabled model before opening a stream
-        if not app.state.registry.resolve(body["model"]):
+        # fail fast on unknown/disabled model before opening a stream.
+        # NB: check the requested model itself, not resolve(): a disabled
+        # model with enabled fallbacks must still 404, not serve via fallback.
+        _primary = app.state.registry.get(body["model"])
+        if _primary is None or not _primary.enabled:
             return _error(f"model '{body['model']}' not found or disabled",
                           status=404, err_type="model_not_found", code=404)
 

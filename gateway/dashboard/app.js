@@ -129,7 +129,7 @@ async function renderOverview() {
     const fails = failures.requests || [];
     document.getElementById("ov-failures").innerHTML = fails.length
       ? '<table><tr><th>Time</th><th>Provider</th><th>Model</th><th>Error</th><th>Latency</th></tr>' +
-        fails.map(r => "<tr><td>" + fmtTime(r.ts) + "</td><td class='mono'>" + esc(r.provider) +
+        fails.map(r => "<tr><td>" + fmtTime(r.ts) + "</td><td class='mono'>" + esc(r.provider || "unrouted") +
           "</td><td class='mono'>" + esc(r.model) + "</td><td>" + esc(r.error || "") +
           "</td><td>" + fmtMs(r.latency_ms) + "</td></tr>").join("") + "</table>"
       : '<div class="empty">No recent failures. Nice.</div>';
@@ -269,7 +269,7 @@ async function renderRequests() {
   el.innerHTML = '<table><tr><th>Time</th><th>Request ID</th><th>Provider</th><th>Model</th>' +
     "<th>Status</th><th>Latency</th><th>Tokens in/out</th><th>Est. cost</th><th>Error</th></tr>" +
     rows.map(r => "<tr><td>" + fmtTime(r.ts) + "</td><td class='mono'>" + esc((r.request_id || "").slice(0, 12)) +
-      "</td><td class='mono'>" + esc(r.provider) + "</td><td class='mono'>" + esc(r.model) +
+      "</td><td class='mono'>" + esc(r.provider || "unrouted") + "</td><td class='mono'>" + esc(r.model) +
       "</td><td>" + (r.status === "ok" ? pill("ok", "ok") : pill("error", "bad")) + "</td><td>" +
       fmtMs(r.latency_ms) + "</td><td>" + fmtInt(r.prompt_tokens) + " / " + fmtInt(r.completion_tokens) +
       "</td><td>" + fmtMoney(r.cost_usd) + "</td><td style='max-width:280px;overflow:hidden;text-overflow:ellipsis'>" +
@@ -294,7 +294,7 @@ async function renderUsage() {
   const bp = data.by_provider || [];
   document.getElementById("usage-by-provider").innerHTML = bp.length
     ? "<table><tr><th>Provider</th><th>Requests</th><th>Errors</th><th>Tokens in/out</th><th>Est. cost</th></tr>" +
-      bp.map(p => "<tr><td class='mono'><b>" + esc(p.provider) + "</b></td><td>" + fmtInt(p.requests) +
+      bp.map(p => "<tr><td class='mono'><b>" + esc(p.provider || "unrouted") + "</b></td><td>" + fmtInt(p.requests) +
         "</td><td>" + fmtInt(p.errors) + "</td><td>" + fmtInt(p.prompt_tokens) + " / " +
         fmtInt(p.completion_tokens) + "</td><td>" + fmtMoney(p.cost_usd) + "</td></tr>").join("") + "</table>"
     : '<div class="empty">No usage in this period.</div>';

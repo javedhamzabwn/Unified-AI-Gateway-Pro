@@ -94,35 +94,52 @@ class UsageStore:
             f" FROM usage_records {where}",
             params,
         ).fetchone()
+        n_requests = totals["requests"] or 0
+        n_ok = totals["ok_requests"] or 0
+        n_errors = n_requests - n_ok
         by_provider = self._conn.execute(
             f"SELECT provider, COUNT(*) AS requests,"
             f" SUM(CASE WHEN status='ok' THEN 1 ELSE 0 END) AS ok_requests,"
             f" SUM(prompt_tokens + completion_tokens) AS tokens,"
+            f" SUM(prompt_tokens) AS prompt_tokens,"
+            f" SUM(completion_tokens) AS completion_tokens,"
             f" SUM(cost_usd) AS cost_usd, AVG(latency_ms) AS avg_latency_ms"
             f" FROM usage_records {where} GROUP BY provider ORDER BY requests DESC",
             params,
         ).fetchall()
         by_model = self._conn.execute(
-            f"SELECT model, provider, COUNT(*) AS requests,"
+            f"SELECT model, COUNT(*) AS requests,"
             f" SUM(CASE WHEN status='ok' THEN 1 ELSE 0 END) AS ok_requests,"
             f" SUM(prompt_tokens + completion_tokens) AS tokens,"
+            f" SUM(prompt_tokens) AS prompt_tokens,"
+            f" SUM(completion_tokens) AS completion_tokens,"
             f" SUM(cost_usd) AS cost_usd, AVG(latency_ms) AS avg_latency_ms"
-            f" FROM usage_records {where} GROUP BY model, provider ORDER BY requests DESC",
+            f" FROM usage_records {where} GROUP BY model ORDER BY requests DESC",
             params,
         ).fetchall()
+
+        def _with_errors(rows):
+            out = []
+            for r in rows:
+                d = dict(r)
+                d["errors"] = (d.get("requests") or 0) - (d.get("ok_requests") or 0)
+                out.append(d)
+            return out
+
         return {
             "days": days,
             "totals": {
-                "requests": totals["requests"] or 0,
-                "ok_requests": totals["ok_requests"] or 0,
-                "error_requests": (totals["requests"] or 0) - (totals["ok_requests"] or 0),
+                "requests": n_requests,
+                "ok_requests": n_ok,
+                "error_requests": n_errors,
+                "errors": n_errors,  # dashboard reads .errors
                 "prompt_tokens": totals["prompt_tokens"] or 0,
                 "completion_tokens": totals["completion_tokens"] or 0,
                 "cost_usd": round(totals["cost_usd"] or 0.0, 6),
                 "avg_latency_ms": round(totals["avg_latency_ms"] or 0.0, 1),
             },
-            "by_provider": [dict(r) for r in by_provider],
-            "by_model": [dict(r) for r in by_model],
+            "by_provider": _with_errors(by_provider),
+            "by_model": _with_errors(by_model),
             "cost_estimated": True,
         }
 
