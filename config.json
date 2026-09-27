@@ -1,0 +1,10 @@
+{
+    "browser_engine":  "auto",
+    "kilo_cap":  175,
+    "kilo_workers":  2,
+    "ainative_cap":  100,
+    "headless":  false,
+    "port":  8008,
+    "cdp_port":  10088,
+    "ainative_workers":  1
+}

@@ -1,0 +1,6 @@
+requests
+undetected-chromedriver
+fastapi
+uvicorn
+httpx
+selenium

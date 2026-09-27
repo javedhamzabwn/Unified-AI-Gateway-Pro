@@ -1,0 +1,26 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Logs and debug files
+*.log
+ainative_debug.png
+ainative_key_screen.png
+
+# Key storage (Keep these local, don't upload to GitHub!)
+kilo_keys.txt
+ainative_keys.txt
+
+# Bot profile data
+bot_profiles/
+bot_chrome_pids.txt
+
+# Virtual environments (if created)
+venv/
+env/
+.venv/
+
+# VS Code / IDE
+.vscode/
+.idea/
