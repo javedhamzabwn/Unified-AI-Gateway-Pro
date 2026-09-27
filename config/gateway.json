@@ -1,0 +1,103 @@
+{
+  "admin_token": "",
+  "circuit_breaker_cooldown_s": 120,
+  "circuit_breaker_threshold": 5,
+  "cors_origins": [],
+  "data_dir": "data",
+  "default_timeout_s": 60.0,
+  "host": "127.0.0.1",
+  "key_cooldown_s": 60,
+  "log_level": "INFO",
+  "max_request_bytes": 10000000,
+  "models": [
+    {
+      "id": "kilo-auto/free",
+      "provider": "kilo",
+      "display_name": "Kilo Auto",
+      "context_window": 128000,
+      "input_price_per_1k": 0.0,
+      "output_price_per_1k": 0.0,
+      "capabilities": [
+        "chat"
+      ],
+      "enabled": true,
+      "priority": 100,
+      "fallbacks": [
+        "deepseek/deepseek-r1:free"
+      ]
+    },
+    {
+      "id": "deepseek/deepseek-r1:free",
+      "provider": "kilo",
+      "display_name": "DeepSeek R1 (via Kilo)",
+      "context_window": 128000,
+      "input_price_per_1k": 0.0,
+      "output_price_per_1k": 0.0,
+      "capabilities": [
+        "chat",
+        "reasoning"
+      ],
+      "enabled": true,
+      "priority": 110,
+      "fallbacks": [
+        "meta-llama/llama-3.3-70b-instruct:free"
+      ]
+    },
+    {
+      "id": "meta-llama/llama-3.3-70b-instruct:free",
+      "provider": "kilo",
+      "display_name": "Llama 3.3 70B Instruct (via Kilo)",
+      "context_window": 128000,
+      "input_price_per_1k": 0.0,
+      "output_price_per_1k": 0.0,
+      "capabilities": [
+        "chat"
+      ],
+      "enabled": true,
+      "priority": 120,
+      "fallbacks": []
+    },
+    {
+      "id": "ainative-example/auto",
+      "provider": "ainative",
+      "display_name": "AINative example entry (verify model IDs against your account)",
+      "context_window": 0,
+      "input_price_per_1k": 0.0,
+      "output_price_per_1k": 0.0,
+      "capabilities": [
+        "chat"
+      ],
+      "enabled": false,
+      "priority": 200,
+      "fallbacks": []
+    }
+  ],
+  "port": 8008,
+  "providers": [
+    {
+      "api_style": "openai",
+      "base_url": "https://api.kilo.ai",
+      "chat_path": "/api/gateway/chat/completions",
+      "display_name": "Kilo Code",
+      "enabled": true,
+      "max_retries": 2,
+      "models_path": "/api/gateway/models",
+      "name": "kilo",
+      "priority": 100,
+      "timeout_s": 60.0
+    },
+    {
+      "api_style": "openai",
+      "base_url": "https://api.ainative.studio",
+      "chat_path": "/v1/chat/completions",
+      "display_name": "AINative Studio",
+      "enabled": true,
+      "max_retries": 2,
+      "models_path": "/v1/models",
+      "name": "ainative",
+      "priority": 200,
+      "timeout_s": 60.0
+    }
+  ],
+  "require_public_auth": false
+}

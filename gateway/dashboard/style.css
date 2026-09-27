@@ -1,0 +1,72 @@
+:root {
+  --bg: #0f1419; --panel: #1a2230; --panel2: #222c3f;
+  --text: #e6edf3; --muted: #8b98a9; --accent: #4f9cf9;
+  --ok: #3fb950; --warn: #d29922; --err: #f85149;
+  --border: #2d3a4f; --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 14px; }
+header { background: var(--panel); border-bottom: 1px solid var(--border);
+  padding: 12px 20px; display: flex; align-items: center; gap: 16px;
+  position: sticky; top: 0; z-index: 10; }
+header h1 { font-size: 17px; margin: 0; font-weight: 600; }
+header h1 span { color: var(--accent); }
+#status-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
+#status-dot.ok { background: var(--ok); } #status-dot.bad { background: var(--err); }
+nav { display: flex; gap: 4px; flex-wrap: wrap; }
+nav button { background: none; border: none; color: var(--muted); padding: 8px 12px;
+  cursor: pointer; font-size: 14px; border-radius: 6px; }
+nav button.active { background: var(--panel2); color: var(--text); }
+nav button:hover { color: var(--text); }
+main { padding: 20px; max-width: 1200px; margin: 0 auto; }
+.tab { display: none; } .tab.active { display: block; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px; margin-bottom: 20px; }
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+  padding: 14px; }
+.card .label { color: var(--muted); font-size: 12px; text-transform: uppercase;
+  letter-spacing: .5px; margin-bottom: 6px; }
+.card .value { font-size: 22px; font-weight: 600; }
+.card .sub { color: var(--muted); font-size: 12px; margin-top: 4px; }
+table { width: 100%; border-collapse: collapse; background: var(--panel);
+  border-radius: 8px; overflow: hidden; margin-bottom: 20px; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+th { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
+tr:last-child td { border-bottom: none; }
+.mono { font-family: var(--mono); font-size: 12.5px; }
+.pill { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 12px; }
+.pill.ok { background: rgba(63,185,80,.15); color: var(--ok); }
+.pill.bad { background: rgba(248,81,73,.15); color: var(--err); }
+.pill.warn { background: rgba(210,153,34,.15); color: var(--warn); }
+.pill.mut { background: rgba(139,152,169,.15); color: var(--muted); }
+button.btn { background: var(--accent); color: #fff; border: none; border-radius: 6px;
+  padding: 8px 14px; cursor: pointer; font-size: 13px; }
+button.btn:hover { filter: brightness(1.1); }
+button.btn.ghost { background: var(--panel2); color: var(--text); }
+button.btn.danger { background: var(--err); }
+button.btn.small { padding: 4px 10px; font-size: 12px; }
+input, select, textarea { background: var(--panel2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px;
+  font-size: 13px; }
+input:focus, select:focus { outline: none; border-color: var(--accent); }
+.form-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; margin-bottom: 16px; }
+.form-row label { display: flex; flex-direction: column; gap: 4px; font-size: 12px;
+  color: var(--muted); }
+#logs-pre { background: #0b0f14; border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px; max-height: 500px; overflow: auto; font-family: var(--mono);
+  font-size: 12px; white-space: pre-wrap; word-break: break-all; }
+#login-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.75);
+  display: none; align-items: center; justify-content: center; z-index: 100; }
+#login-overlay.show { display: flex; }
+#login-box { background: var(--panel); border: 1px solid var(--border);
+  border-radius: 10px; padding: 28px; width: 360px; }
+#login-box h2 { margin: 0 0 8px; font-size: 18px; }
+#login-box p { color: var(--muted); font-size: 13px; }
+#login-box input { width: 100%; margin: 10px 0; }
+#login-err { color: var(--err); font-size: 13px; min-height: 18px; }
+.empty { color: var(--muted); padding: 20px; text-align: center; }
+.note { color: var(--muted); font-size: 12px; margin-top: 8px; }
+h2.sec { font-size: 16px; margin: 0 0 12px; }
+.toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }

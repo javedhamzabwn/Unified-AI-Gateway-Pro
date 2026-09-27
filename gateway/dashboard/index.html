@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unified AI Gateway Pro</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div id="status-dot" title="gateway status"></div>
+  <h1>Unified AI Gateway <span>Pro</span></h1>
+  <nav id="tabs">
+    <button data-tab="overview" class="active">Overview</button>
+    <button data-tab="providers">Providers</button>
+    <button data-tab="models">Models</button>
+    <button data-tab="keys">Keys</button>
+    <button data-tab="requests">Requests</button>
+    <button data-tab="usage">Usage</button>
+    <button data-tab="logs">Logs</button>
+    <button data-tab="settings">Settings</button>
+  </nav>
+  <div style="margin-left:auto" class="toolbar">
+    <button class="btn ghost small" id="btn-logout" title="Forget admin token">Sign out</button>
+  </div>
+</header>
+<main>
+  <section id="tab-overview" class="tab active">
+    <div class="cards" id="ov-cards"></div>
+    <h2 class="sec">Provider health</h2>
+    <div id="ov-health"></div>
+    <h2 class="sec">Recent failures</h2>
+    <div id="ov-failures"></div>
+  </section>
+
+  <section id="tab-providers" class="tab">
+    <div class="toolbar"><button class="btn ghost" id="btn-prov-refresh">Refresh</button></div>
+    <div id="providers-table"></div>
+  </section>
+
+  <section id="tab-models" class="tab">
+    <div class="toolbar"><button class="btn ghost" id="btn-models-refresh">Refresh</button></div>
+    <div id="models-table"></div>
+  </section>
+
+  <section id="tab-keys" class="tab">
+    <h2 class="sec">Add API key</h2>
+    <form id="key-form" class="form-row">
+      <label>Provider <select id="key-provider"></select></label>
+      <label>Label <input id="key-label" placeholder="e.g. primary" required></label>
+      <label>API key <input id="key-secret" type="password" placeholder="paste key" required style="min-width:280px"></label>
+      <button class="btn" type="submit">Add key</button>
+    </form>
+    <div class="toolbar">
+      <label>Filter <select id="key-filter"><option value="">All providers</option></select></label>
+      <button class="btn ghost" id="btn-keys-refresh">Refresh</button>
+    </div>
+    <div id="keys-table"></div>
+    <p class="note">Keys are stored encrypted and shown masked everywhere. The raw value is never returned by the API.</p>
+  </section>
+
+  <section id="tab-requests" class="tab">
+    <div class="toolbar">
+      <label>Status <select id="req-status"><option value="">All</option><option value="ok">OK</option><option value="error">Errors</option></select></label>
+      <label>Limit <select id="req-limit"><option>50</option><option selected>100</option><option>250</option></select></label>
+      <button class="btn ghost" id="btn-req-refresh">Refresh</button>
+    </div>
+    <div id="requests-table"></div>
+  </section>
+
+  <section id="tab-usage" class="tab">
+    <div class="toolbar">
+      <button class="btn ghost" data-days="1">Today</button>
+      <button class="btn ghost" data-days="7">7 days</button>
+      <button class="btn ghost" data-days="30">30 days</button>
+      <button class="btn ghost" data-days="all">All time</button>
+    </div>
+    <div class="cards" id="usage-cards"></div>
+    <h2 class="sec">By provider</h2><div id="usage-by-provider"></div>
+    <h2 class="sec">By model</h2><div id="usage-by-model"></div>
+    <p class="note">Costs are estimates computed from configured per-model pricing, not actual provider bills.</p>
+  </section>
+
+  <section id="tab-logs" class="tab">
+    <div class="toolbar">
+      <label>Lines <select id="log-lines"><option>100</option><option selected>200</option><option>500</option></select></label>
+      <button class="btn ghost" id="btn-logs-refresh">Refresh</button>
+    </div>
+    <pre id="logs-pre"><span class="empty">loading…</span></pre>
+  </section>
+
+  <section id="tab-settings" class="tab">
+    <div class="toolbar"><button class="btn ghost" id="btn-cfg-refresh">Refresh</button></div>
+    <div id="settings-table"></div>
+  </section>
+</main>
+
+<div id="login-overlay">
+  <div id="login-box">
+    <h2>Admin sign in</h2>
+    <p>Enter the gateway admin token (UAG_ADMIN_TOKEN). It is kept only in this tab's session storage.</p>
+    <input id="login-token" type="password" placeholder="admin token" autocomplete="off">
+    <div id="login-err"></div>
+    <button class="btn" id="btn-login" style="width:100%">Sign in</button>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
