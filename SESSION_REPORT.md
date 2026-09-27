@@ -86,8 +86,22 @@ automation bugs (harness-only): CDP needed `--remote-allow-origins=*`; load-even
 raced navigation (switched to readyState polling); jsdom needed `resources:"usable"` and a
 browser-faithful relative-URL fetch shim. All recorded in TASKS.md.
 
-## Remaining before push
+## Push to GitHub (2026-09-27, completed)
 
-- Kill scratch servers (8123, 8124) and remove /tmp scratch dirs.
-- Final `pytest`, `py_compile`, CLI smoke, `git status` review, junk cleanup.
-- Commit in coherent units; push only if authenticated write access exists.
+HTTPS had no configured login and SSH timed out through the sandbox proxy, so
+the push went through the GitHub git-database API using the approved
+`custom.github` Secure Vault connector (surrogate exchange, raw token never
+touched). `workspace/tools/github_api_push.py` rebuilds each commit's full tree
+from `git ls-tree` (verified byte-identical to the local tree sha before
+creating the commit), creates the commit objects, and fast-forwards `main`.
+Surrogate tokens are rejected by `github.com` git-HTTPS (Basic and Bearer), so
+the API route is the working write path; the raw PAT never leaves the vault.
+
+Remote `main` verified at `dd3b142ed9d121d17737f02a8162fed453df7316` via both
+`git fetch` and the API commits listing; local `main` reset to match. All four
+work commits are on the remote with identical trees.
+
+## Remaining: final cleanup (after live testing finishes)
+
+- Kill scratch servers (8123) and remove /tmp/uag-pub (token, data, logs).
+- Close browser tasks/tabs; verify no idle browser daemon remains.
